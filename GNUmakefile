@@ -85,8 +85,7 @@ PERL	:= perl
 # -fno-builtin is required to avoid refs to undefined functions in the kernel.
 # Only optimize to -O1 to discourage inlining, which complicates backtraces.
 CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O1 -fno-builtin -I$(TOP) -MD 
-CFLAGS += -fno-omit-frame-pointer
-CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32
+CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32 -fno-omit-frame-pointer
 
 # Add -fno-stack-protector if the option exists.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
@@ -181,8 +180,12 @@ grade: $(LABSETUP)grade-lab$(LAB).sh
 	sh $(LABSETUP)grade-lab$(LAB).sh
 
 handin: tarball
-	@echo Please visit http://pdos.csail.mit.edu/6.828/submit/
-	@echo and upload lab$(LAB)-handin.tar.gz.  Thanks!
+	@echo
+	@echo "Please use the following command to upload your lab:"
+	@echo
+	@echo "ftp -u ftp://osdi13:osdi13ipads@ipads.se.sjtu.edu.cn/lab$(LAB)/<student id>.tar.gz lab$(LAB)-handin.tar.gz"
+	@echo
+	@echo "For example, if your student id is 123456, then replace <student id>.tar.gz to 123456.tar.gz"
 
 tarball: realclean
 	tar cf - `find . -type f | grep -v '^\.*$$' | grep -v '/CVS/' | grep -v '/\.svn/' | grep -v '/\.git/' | grep -v 'lab[0-9].*\.tar\.gz'` | gzip > lab$(LAB)-handin.tar.gz
