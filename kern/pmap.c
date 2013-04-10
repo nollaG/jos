@@ -102,7 +102,15 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
+  if (n==0)
+    return nextfree;
+  if (n>0) {
+    if (PADDR(nextfree+n)>= npages*PGSIZE)
+      panic("boot_alloc:out of memory\n");
+    result=nextfree;
+    nextfree = ROUNDUP(nextfree+n,PGSIZE);
+    return result;
+  }
 	return NULL;
 }
 
@@ -125,7 +133,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+  /*panic("mem_init: This function is not finished\n");*/
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -147,6 +155,7 @@ mem_init(void)
 	// each physical page, there is a corresponding struct Page in this
 	// array.  'npages' is the number of physical pages in memory.
 	// Your code goes here:
+  pages = (struct Page*)boot_alloc(npages*sizeof(struct Page));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -158,6 +167,7 @@ mem_init(void)
 
 	check_page_free_list(1);
 	check_page_alloc();
+  /*panic("Yeah!\n");*/
 	check_page();
 	check_four_pages();
 
@@ -250,12 +260,28 @@ page_init(void)
 	// Change the code to reflect this.
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
+  //
+  // in order to support 4pages,we need to reverse the list
 	size_t i;
-	for (i = 0; i < npages; i++) {
+  page_free_list=NULL;
+  for (i=npages-1;i>=PGNUM(PADDR(boot_alloc(0)));--i) {
+		pages[i].pp_ref = 0;
+    pages[i].pp_link = page_free_list;
+    page_free_list = &pages[i];
+  }
+  //EXTPHYSMEM is where the kernel in.
+  for (i=PGNUM(EXTPHYSMEM);i<PGNUM(PADDR(boot_alloc(0)));++i) {
+    pages[i].pp_ref=0;
+  }
+  for (i=PGNUM(IOPHYSMEM);i<PGNUM(EXTPHYSMEM);++i) {
+    pages[i].pp_ref=0;
+  }
+	for (i = npages_basemem-1; i >=1 ; i--) {
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+  pages[0].pp_ref=0;
 }
 
 //
@@ -271,7 +297,13 @@ struct Page *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	return 0;
+  if (!page_free_list)
+    return NULL;
+  struct Page *result=page_free_list;
+  page_free_list=page_free_list->pp_link;
+  if (alloc_flags & ALLOC_ZERO)
+    memset(page2kva(result),0,PGSIZE);
+	return result;
 }
 
 //
@@ -290,7 +322,17 @@ struct Page *
 page_alloc_4pages(int alloc_flags)
 {
 	// Fill this function
-	return NULL;
+  if (!page_free_list)
+    return NULL;
+  struct Page *result=page_free_list;
+  while (result && !check_continuous(result))
+    result=result->pp_link;
+  if (!result || !check_continuous(result)) {
+    return NULL;
+  }
+  if (alloc_flags & ALLOC_ZERO)
+    memset(page2kva(result),0,PGSIZE << 2);
+	return result;
 }
 
 // Return 4 continuous pages to chunck list. Do the following things:
@@ -302,7 +344,22 @@ int
 page_free_4pages(struct Page *pp)
 {
 	// Fill this function
-	return -1;
+  if (pp==NULL || !check_continuous(pp))
+    return -1;
+  struct Page *tmp=NULL;
+  struct Page *next=page_free_list;
+  while (next && next<pp) {
+    tmp=next;
+    next=tmp->pp_link;
+  }
+  if (!tmp) { //insert at head
+    pp->pp_link->pp_link->pp_link->pp_link=next;
+    page_free_list=pp;
+    return 0;
+  }
+  pp->pp_link->pp_link->pp_link->pp_link=next;
+  tmp->pp_link=pp;
+	return 0;
 }
 
 //
@@ -312,7 +369,19 @@ page_free_4pages(struct Page *pp)
 void
 page_free(struct Page *pp)
 {
-	// Fill this function in
+  struct Page *tmp=NULL;
+  struct Page *next=page_free_list;
+  while (next && next<pp) {
+    tmp=next;
+    next=tmp->pp_link;
+  }
+  if (!tmp) { //insert at head
+    pp->pp_link=next;
+    page_free_list=pp;
+    return;
+  }
+  pp->pp_link=next;
+  tmp->pp_link=pp;
 }
 
 //
