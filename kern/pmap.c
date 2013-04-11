@@ -164,11 +164,10 @@ mem_init(void)
 	// particular, we can now map memory using boot_map_region
 	// or page_insert
 	page_init();
-
-	check_page_free_list(1);
-	check_page_alloc();
-	check_page();
-	check_four_pages();
+  check_page_free_list(1);
+  check_page_alloc();
+  check_page();
+  check_four_pages();
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -180,6 +179,8 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
+  boot_map_region(kern_pgdir, UPAGES, ROUNDUP(npages*sizeof(struct Page),PGSIZE),
+      PADDR(pages), PTE_U | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -192,6 +193,7 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+  boot_map_region(kern_pgdir,KSTACKTOP-KSTKSIZE,KSTKSIZE,PADDR(bootstack),PTE_W | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -201,6 +203,7 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+  boot_map_region(kern_pgdir,KERNBASE,-KERNBASE,0,PTE_W | PTE_P);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -323,11 +326,19 @@ page_alloc_4pages(int alloc_flags)
 	// Fill this function
   if (!page_free_list)
     return NULL;
+  struct Page *prev=NULL;
   struct Page *result=page_free_list;
-  while (result && !check_continuous(result))
+  while (result && !check_continuous(result)) {
+    prev=result;
     result=result->pp_link;
+  }
   if (!result || !check_continuous(result)) {
     return NULL;
+  }
+  if (!prev) { //alloc from the head
+    page_free_list=result->pp_link->pp_link->pp_link->pp_link;
+  } else {
+    prev->pp_link=result->pp_link->pp_link->pp_link->pp_link;
   }
   if (alloc_flags & ALLOC_ZERO)
     memset(page2kva(result),0,PGSIZE << 2);
@@ -450,20 +461,18 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
-  char *a,*last;
+  char *a;
   pte_t *pte;
-  a = (char*)ROUNDDOWN(va,PGSIZE);
-  last = (char*)ROUNDDOWN(va+size-1,PGSIZE);
-  while (1) {
-    if ((pte = pgdir_walk(pgdir, a ,1)) == 0)
+  a = (char*)va;
+  while (size) {
+    if ((pte = pgdir_walk(pgdir, a ,1)) == NULL)
       panic("walkpgdir");
     if (*pte & PTE_P) //present
       panic("remap");
-    *pte = pa | perm | PTE_P;
-    if (a==last)
-      break;
+    *pte = PTE_ADDR(pa) | perm | PTE_P;
     a +=PGSIZE;
     pa +=PGSIZE;
+    size-=PGSIZE;
   }
   return;
 }
@@ -737,8 +746,8 @@ check_kern_pgdir(void)
 
 	// check pages array
 	n = ROUNDUP(npages*sizeof(struct Page), PGSIZE);
-	for (i = 0; i < n; i += PGSIZE)
-		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
+  for (i = 0; i < n; i += PGSIZE)
+    assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
 
 
 	// check phys mem
