@@ -832,7 +832,6 @@ check_page(void)
 
 	// there is no free memory, so we can't allocate a page table
 	assert(page_insert(kern_pgdir, pp1, 0x0, PTE_W) < 0);
-  /*panic("Yeah!\n");*/
 
 	// free pp0 and try again: pp0 should be used for page table
 	page_free(pp0);

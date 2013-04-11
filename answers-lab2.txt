@@ -1,0 +1,50 @@
+1. I think variable x should be uintptr_t.
+   Because it holds the value returned by function return_a_pointer.
+   This pointer can be dereferenced,so it's must be a uintptr_t.
+   So x should be uintptr_t.
+
+
+2. 
+|------------------------------------------------------------------------|
+| Entry | Base Virtual Address             Points to (logically)         |
+|------------------------------------------------------------------------|
+| 1023  | 0xffc00000                Page table for top 4M of phys memory |
+|------------------------------------------------------------------------|
+| 1022  | 0xff800000         Page table for second top 4M of phys memory |
+|------------------------------------------------------------------------|
+| ....  | ....                      Page table for ... 4M of phys memory |
+|------------------------------------------------------------------------|
+| 960   | 0xf0000000             Page table for bottom 4M of phys memory |
+|------------------------------------------------------------------------|
+| ....  | ....                                                           |
+|------------------------------------------------------------------------|
+| 958   | 0xef800000             Page table for kernel stack             |
+|------------------------------------------------------------------------|
+| ....  | ....                                                           |
+|------------------------------------------------------------------------|
+| 956   | 0xef000000             Page table for pages                    |
+|------------------------------------------------------------------------|
+| ....  | ....                                                           |
+|------------------------------------------------------------------------|
+
+The memory below UTOP is not mapped yet.
+
+
+
+3. Because the kernel is mapped at high memory and the page table entres
+   ensures the user have no permission to the kernel memory.
+   (i.e not PTE_U)
+   The Page table entries protected the kernel memory.
+
+4. 256M.
+   Because the kernel can only map 0xf0000000 -> 2^32 above KernelBase.
+
+5. max pages=256M/4K=65536
+   65536*4bytes = 256K bytes page tables
+   We use multilevel page table (page directory and page table) to broke it
+   down.
+
+6. After jmp *%eax,we are running at an EIP above KERNBASE.
+   Because we map a 4M page from 0 to 0 and KERNBASE to 0.
+   Only after we are running at high memory,we can actually realize the
+   virtual memory.
