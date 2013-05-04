@@ -88,7 +88,7 @@ trap_init(void)
   SETGATE(idt[0],0,GD_KT,trapfun0,0);
   SETGATE(idt[1],0,GD_KT,trapfun1,0);
   SETGATE(idt[2],0,GD_KT,trapfun2,0);
-  SETGATE(idt[3],0,GD_KT,trapfun3,0);
+  SETGATE(idt[3],0,GD_KT,trapfun3,3);
   SETGATE(idt[4],0,GD_KT,trapfun4,0);
   SETGATE(idt[5],0,GD_KT,trapfun5,0);
   SETGATE(idt[6],0,GD_KT,trapfun6,0);
@@ -104,10 +104,12 @@ trap_init(void)
   SETGATE(idt[18],0,GD_KT,trapfun18,0);
   SETGATE(idt[19],0,GD_KT,trapfun19,0);
 
+
 	// Per-CPU setup 
 	trap_init_percpu();
 }
 
+void sysenter_handler();
 // Initialize and load the per-CPU TSS and IDT
 void
 trap_init_percpu(void)
@@ -116,6 +118,9 @@ trap_init_percpu(void)
 	// when we trap to the kernel.
 	ts.ts_esp0 = KSTACKTOP;
 	ts.ts_ss0 = GD_KD;
+  wrmsr(0x174,GD_KT,0); //sysenter_cs_msr
+  wrmsr(0x175,ts.ts_esp0,0);         //sysenter_esp_msr
+  wrmsr(0x176,(uint32_t)sysenter_handler,0);//eip
 
 	// Initialize the TSS slot of the gdt.
 	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
@@ -181,6 +186,14 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+  if (tf->tf_trapno==T_PGFLT) {
+    page_fault_handler(tf);
+    return;
+  }
+  if (tf->tf_trapno==T_BRKPT) {
+    monitor(tf);
+    return;
+  }
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -241,6 +254,10 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+  if (tf->tf_cs == GD_KT) { //page fault in kernel
+    print_trapframe(tf);
+    panic("page fault in kernel mode");
+  }
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

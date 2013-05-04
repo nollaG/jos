@@ -625,7 +625,28 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
-
+  int beginpg=PGNUM(va);
+  int endpg=PGNUM((const char*)va+len);
+  int i;
+  pte_t* pte;
+  uintptr_t pageaddress;
+  for (i=beginpg;i<=endpg;++i) {
+    pageaddress=i << PTXSHIFT;
+    if (pageaddress>=ULIM) {
+      if ((void*)pageaddress<va)
+        pageaddress=(uintptr_t)va;
+      user_mem_check_addr=pageaddress;
+      return -E_FAULT;
+    }
+    pte=pgdir_walk(env->env_pgdir, (void*)pageaddress, 0);
+    if (!pte || !(*pte & (PTE_P | perm)))
+    {
+      if ((void*)pageaddress<va)
+        pageaddress=(uintptr_t)va;
+      user_mem_check_addr=pageaddress;
+      return -E_FAULT;
+    }
+  }
 	return 0;
 }
 

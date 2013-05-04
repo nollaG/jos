@@ -280,15 +280,11 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   (Watch out for corner-cases!)
   char* a=(char*)ROUNDDOWN(va,PGSIZE);
   char* last=(char*)ROUNDUP((char*)va+len,PGSIZE);
-  pte_t *pte;
   struct Page* p;
   while (a!=last) {
-    if (!(pte = pgdir_walk(e->env_pgdir,a,1)))
-      panic("pgdir_walk");
     if(!(p=page_alloc(0)))
       panic("alloc");
-    p->pp_ref++;
-    *pte = page2pa(p) | PTE_W | PTE_U | PTE_P;
+    assert(!page_insert(e->env_pgdir,p,(void*)a,PTE_W | PTE_U));
     a+=PGSIZE;
   }
 }
@@ -358,18 +354,16 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
     panic("load_icode not elf format");
   ph = (struct Proghdr *) ((uint8_t *)elfhdr + elfhdr->e_phoff);
   eph = ph + elfhdr->e_phnum;
-  cprintf("ph->p_entry=%p\n",(void*)elfhdr->e_entry);
   for (;ph<eph;ph++) {
     if (ph->p_type==ELF_PROG_LOAD) {
-      cprintf("ph->p_memsz=%d\n",ph->p_memsz);
-      cprintf("ph->p_va=%p\n",(void*)ph->p_va);
-      cprintf("ph->filesz=%d\n",ph->p_filesz);
       region_alloc(e,(void*)ph->p_va,(size_t)ph->p_memsz); //alloc a region for this seg
       cursize=ph->p_filesz;
       offset=binary+ph->p_offset;
       va=(char*)ph->p_va;
       while (cursize) {
         actualsize=PGSIZE>cursize?cursize:PGSIZE;
+        if (actualsize>PGSIZE-PGOFF(va))
+          actualsize=PGSIZE-PGOFF(va);
         pte=pgdir_walk(e->env_pgdir,va,0);
         if (!pte || !(*pte & PTE_P))
           panic("load_icode region alloc wrong");
@@ -381,6 +375,8 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
       cursize=ph->p_memsz-ph->p_filesz;//clear size
       while (cursize) {
         actualsize=PGSIZE>cursize?cursize:PGSIZE;
+        if (actualsize>PGSIZE-PGOFF(va))
+          actualsize=PGSIZE-PGOFF(va);
         pte=pgdir_walk(e->env_pgdir,va,0);
         if (!pte || !(*pte & PTE_P))
           panic("load_icode region alloc wrong");

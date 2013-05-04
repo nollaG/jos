@@ -71,6 +71,25 @@ TRAPHANDLER_NOEC(trapfun19,T_SIMDERR)
 .type sysenter_handler, @function;
 .align 2;
 sysenter_handler:
+  pushl %ds
+  pushl %es
+  pushl %esi
+  pushl %ebp
+  pushl $0
+  pushl %edi
+  pushl %ebx
+  pushl %ecx
+  pushl %edx
+  pushl %eax
+  call syscall
+  addl $24,%esp
+  popl %ebp
+  popl %esi
+  popl %es
+  popl %ds
+  movl %ebp,%ecx /*return esp*/
+  movl %esi,%edx /*return value to edx*/
+  sysexit
 /*
  * Lab 3: Your code here for system call handling
  */
