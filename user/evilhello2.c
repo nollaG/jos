@@ -66,6 +66,7 @@ void ring0_call(void (*fun_ptr)(void)) {
     struct Pseudodesc gdtd;
     sgdt(&gdtd);
     sys_map_kernel_page((void*)gdtd.pd_base,(void*)&mappage[PGSIZE]);
+    sys_map_kernel_page((void*)gdtd.pd_base+gdtd.pd_lim,(void*)&mappage[PGSIZE+gdtd.pd_lim]);
     struct Gatedesc* gatedesc = 
       &(((struct Gatedesc*)(gdtd.pd_base - ROUNDDOWN(gdtd.pd_base,PGSIZE)+ROUNDDOWN(&mappage[PGSIZE],PGSIZE)))[3]);
     cprintf("gdtd.pd_base=%p\n",gdtd.pd_base);
