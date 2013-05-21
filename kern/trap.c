@@ -65,6 +65,26 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
+void trapfun0();
+void trapfun1();
+void trapfun2();
+void trapfun3();
+void trapfun4();
+void trapfun5();
+void trapfun6();
+void trapfun7();
+void trapfun8();
+void trapfun10();
+void trapfun11();
+void trapfun12();
+void trapfun13();
+void trapfun14();
+void trapfun16();
+void trapfun17();
+void trapfun18();
+void trapfun19();
+
+
 
 void
 trap_init(void)
@@ -72,11 +92,31 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+  SETGATE(idt[0],0,GD_KT,trapfun0,0);
+  SETGATE(idt[1],0,GD_KT,trapfun1,0);
+  SETGATE(idt[2],0,GD_KT,trapfun2,0);
+  SETGATE(idt[3],0,GD_KT,trapfun3,3);
+  SETGATE(idt[4],0,GD_KT,trapfun4,0);
+  SETGATE(idt[5],0,GD_KT,trapfun5,0);
+  SETGATE(idt[6],0,GD_KT,trapfun6,0);
+  SETGATE(idt[7],0,GD_KT,trapfun7,0);
+  SETGATE(idt[8],0,GD_KT,trapfun8,0);
+  SETGATE(idt[10],0,GD_KT,trapfun10,0);
+  SETGATE(idt[11],0,GD_KT,trapfun11,0);
+  SETGATE(idt[12],0,GD_KT,trapfun12,0);
+  SETGATE(idt[13],0,GD_KT,trapfun13,0);
+  SETGATE(idt[14],0,GD_KT,trapfun14,0);
+  SETGATE(idt[16],0,GD_KT,trapfun16,0);
+  SETGATE(idt[17],0,GD_KT,trapfun17,0);
+  SETGATE(idt[18],0,GD_KT,trapfun18,0);
+  SETGATE(idt[19],0,GD_KT,trapfun19,0);
+
 
 	// Per-CPU setup 
 	trap_init_percpu();
 }
 
+void sysenter_handler();
 // Initialize and load the per-CPU TSS and IDT
 void
 trap_init_percpu(void)
@@ -108,6 +148,9 @@ trap_init_percpu(void)
 	// when we trap to the kernel.
 	ts.ts_esp0 = KSTACKTOP;
 	ts.ts_ss0 = GD_KD;
+  wrmsr(0x174,GD_KT,0); //sysenter_cs_msr
+  wrmsr(0x175,ts.ts_esp0,0);         //sysenter_esp_msr
+  wrmsr(0x176,(uint32_t)sysenter_handler,0);//eip
 
 	// Initialize the TSS slot of the gdt.
 	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
@@ -173,6 +216,14 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+  if (tf->tf_trapno==T_PGFLT) {
+    page_fault_handler(tf);
+    return;
+  }
+  if (tf->tf_trapno==T_BRKPT) {
+    monitor(tf);
+    return;
+  }
 
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
@@ -264,6 +315,10 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+  if (tf->tf_cs == GD_KT) { //page fault in kernel
+    print_trapframe(tf);
+    panic("page fault in kernel mode");
+  }
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

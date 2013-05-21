@@ -1,0 +1,20 @@
+Question 1:
+Using the current implementation can make trapno in trapframe,if we use
+identical handler for each exception/interrupt we can not dispatch them
+in trap handler.
+
+Question 2:
+Although a int 14 is called in softint.c,but we set the dpl for PGFLT to 0
+so user program do not have enough privilege.If we let user program int 14
+and trap to kernel,but we don't have errcode about it,and trapframe will be
+wrong.
+
+Question 3:
+If you set the dpl of int3 to 0 and then the user program don't 
+have enouth privilege to trigger int3 ,a int 13 will
+caught.If you want to make it work properly,you should set the dpl of int3 to 
+3 in order to allow user program trigger int3.
+
+Question 4:
+When the instruction want to trigger a interrupt/exception,the hardware
+firstly will check whether cpl<=dpl or the int13 will be triggered instead.

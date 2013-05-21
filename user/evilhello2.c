@@ -33,6 +33,11 @@ sgdt(struct Pseudodesc* gdtd)
 	__asm __volatile("sgdt %0" :  "=m" (*gdtd));
 }
 
+
+char maparea[2*PGSIZE];
+
+void funcall();
+
 // Invoke a given function pointer with ring0 privilege, then return to ring3
 void ring0_call(void (*fun_ptr)(void)) {
     // Here's some hints on how to achieve this.
@@ -49,6 +54,23 @@ void ring0_call(void (*fun_ptr)(void)) {
     //        file if necessary.
 
     // Lab3 : Your Code Here
+    struct Pseudodesc gdtcopy;
+    sgdt(&gdtcopy);
+    sys_map_kernel_page((void*)(gdtcopy.pd_base),(void*)&maparea[PGSIZE]);
+    sys_map_kernel_page((void*)(gdtcopy.pd_base+gdtcopy.pd_lim),(void*)&maparea[PGSIZE+gdtcopy.pd_lim]);
+    struct Gatedesc* gatedesc = &(((struct Gatedesc*)(
+									(gdtcopy.pd_base - ROUNDDOWN(gdtcopy.pd_base,PGSIZE)) + ROUNDDOWN((&maparea[PGSIZE]),PGSIZE)
+									))
+									[3]
+								); //GD_UT
+    struct Gatedesc savegate = *gatedesc;
+    SETCALLGATE(*gatedesc,GD_KT,funcall,3); 
+    __asm __volatile("lcall $0x18,$0\n"
+        "funcall:");
+    fun_ptr();
+    *gatedesc = savegate;
+    __asm __volatile("lret \n");
+    return;
 }
 
 void
