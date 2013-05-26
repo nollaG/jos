@@ -11,6 +11,7 @@
 #include <kern/syscall.h>
 #include <kern/console.h>
 #include <kern/sched.h>
+#include <kern/spinlock.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -283,26 +284,39 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
+  //
+
+  int result=0;
+  lock_kernel();
+  asm volatile(	"movl (%%ebp),%%eax\n"
+      :"=a" (curenv->env_tf.tf_regs.reg_ecx), //ebp to ecx
+      "=S" (curenv->env_tf.tf_regs.reg_edx)  //esi to edx
+      );
+  curenv->env_tf.tf_trapno = T_SYSCALL;
   switch (syscallno) {
     case SYS_cputs:
       sys_cputs((const char*)a1,(size_t)a2);
-      return 0;
       break;
     case SYS_cgetc:
-      return sys_cgetc();
+      result = sys_cgetc();
       break;
     case SYS_getenvid:
-      return (int32_t)sys_getenvid();
+      result = (int32_t)sys_getenvid();
       break;
     case SYS_env_destroy:
-      return sys_env_destroy((envid_t)a1);
+      result = sys_env_destroy((envid_t)a1);
       break;
     case SYS_map_kernel_page:
-      return sys_map_kernel_page((void*)a1,(void*)a2);
+      result = sys_map_kernel_page((void*)a1,(void*)a2);
+      break;
+    case SYS_yield:
+      sys_yield();
       break;
     default:
-      return -E_INVAL;
+      result = -E_INVAL;
       break;
   }
+  unlock_kernel();
+  return result;
 }
 

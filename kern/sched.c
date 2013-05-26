@@ -29,6 +29,23 @@ sched_yield(void)
 	// below to switch to this CPU's idle environment.
 
 	// LAB 4: Your code here.
+  struct Env *last = thiscpu->cpu_env;
+  int k;
+  if (last==NULL)
+    k=0;
+  else
+    k=ENVX(last->env_id)+1;
+  for (i=0;i < NENV;++i) {
+    if ( envs[k].env_type != ENV_TYPE_IDLE &&
+        envs[k].env_status == ENV_RUNNABLE )
+      env_run(&envs[k]);
+    k++;
+    if (k>=NENV)
+      k=0;
+  }
+  if (last!=NULL && last->env_status == ENV_RUNNING)
+    env_run(last);
+
 
 	// For debugging and testing purposes, if there are no
 	// runnable environments other than the idle environments,
