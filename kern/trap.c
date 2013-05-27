@@ -83,6 +83,7 @@ void trapfun16();
 void trapfun17();
 void trapfun18();
 void trapfun19();
+void trapfun48();
 
 
 
@@ -110,6 +111,7 @@ trap_init(void)
   SETGATE(idt[17],0,GD_KT,trapfun17,0);
   SETGATE(idt[18],0,GD_KT,trapfun18,0);
   SETGATE(idt[19],0,GD_KT,trapfun19,0);
+  SETGATE(idt[48],0,GD_KT,trapfun48,3);
 
 
 	// Per-CPU setup 
@@ -226,6 +228,12 @@ trap_dispatch(struct Trapframe *tf)
   }
   if (tf->tf_trapno==T_BRKPT) {
     monitor(tf);
+    return;
+  }
+  if (tf->tf_trapno==T_SYSCALL) {
+    unlock_kernel();
+    syscall(tf->tf_regs.reg_eax,tf->tf_regs.reg_edx,tf->tf_regs.reg_ecx,tf->tf_regs.reg_ebx,tf->tf_regs.reg_edi,0);
+    lock_kernel();
     return;
   }
 

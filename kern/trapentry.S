@@ -65,6 +65,7 @@ TRAPHANDLER_NOEC(trapfun16,T_FPERR)
 TRAPHANDLER_NOEC(trapfun17,T_ALIGN)
 TRAPHANDLER_NOEC(trapfun18,T_MCHK)
 TRAPHANDLER_NOEC(trapfun19,T_SIMDERR)
+TRAPHANDLER_NOEC(trapfun48,T_SYSCALL)
 
 
 
@@ -82,6 +83,7 @@ sysenter_handler:
   pushl %ecx
   pushl %edx
   pushl %eax
+  call saveRegisters
   call syscall
   addl $24,%esp
   popl %ebp
