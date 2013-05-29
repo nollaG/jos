@@ -573,7 +573,6 @@ env_run(struct Env *e)
   curenv=e;
   e->env_status=ENV_RUNNING;
   e->env_runs++;
-  cprintf("envrun,envid=%x\n",e->env_id);
   lcr3(PADDR(e->env_pgdir));
   unlock_kernel();
   env_pop_tf(&e->env_tf);
