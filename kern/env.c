@@ -522,6 +522,7 @@ env_pop_tf(struct Trapframe *tf)
 	curenv->env_cpunum = cpunum();
   if (tf->tf_trapno==T_SYSCALL_SYSENTER) {
 		asm volatile(
+      "sti\n\t"
 			"sysexit\n\t"
 			:
 			:"c" (curenv->env_tf.tf_regs.reg_ecx),
