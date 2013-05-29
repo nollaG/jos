@@ -90,6 +90,7 @@ TRAPHANDLER_NOEC(irq15,IRQ_OFFSET+15)
 .type sysenter_handler, @function;
 .align 2;
 sysenter_handler:
+  cli
   pushl %ds
   pushl %es
   pushl %esi
