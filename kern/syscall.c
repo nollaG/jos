@@ -104,8 +104,8 @@ sys_exofork(void)
     return t;
   e->env_tf = curenv->env_tf;
   e->env_tf.tf_regs.reg_eax = 0;
+  e->env_tf.tf_eflags |= FL_IF;
   curenv->env_tf.tf_regs.reg_eax=e->env_id;
-  cprintf("exofork\n");
   e->env_status = ENV_NOT_RUNNABLE;
   return e->env_id;
 	panic("sys_exofork not implemented");
