@@ -1,0 +1,23 @@
+ID:5100309048
+Name:Jialun Bian
+
+Challenge:
+I implemented the sfork in lib/fork.c, this is quite like fork but
+just map the page shared. And I defined thisenv in inc/lib.h as a 
+function to return the correct pointer. Just see the code.
+
+
+Question 1:
+MPBOOTPHYS is the address where to place the boot_ap code, If it were
+omitted the load address and the link address will not be the same one.
+
+Question 2:
+Because sometimes the kernel stack should save some values on the stack
+before acquiring the kernel lock.
+There are some instructions before acquiring the kernel lock but in kernel
+mode.If every cpu sharing one stack,these instructions could be messy.
+
+
+Question 3:
+Because the pointer is above the KERN_BASE,and in kern_pgdir and env_pgdir,
+there are both mapping in this area.
