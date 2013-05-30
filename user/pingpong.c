@@ -8,7 +8,7 @@ umain(int argc, char **argv)
 {
 	envid_t who;
 
-	if ((who = fork()) != 0) {
+	if ((who = sfork()) != 0) {
 		// get the ball rolling
 		cprintf("send 0 from %x to %x\n", sys_getenvid(), who);
 		ipc_send(who, 0, 0, 0);

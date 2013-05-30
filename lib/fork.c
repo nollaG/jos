@@ -83,6 +83,17 @@ duppage(envid_t envid, unsigned pn)
 	return 0;
 }
 
+static int
+duppage_sfork(envid_t envid,unsigned pn) {
+	int r;
+  pte_t pte = vpt[pn];
+  int perm = pte & PTE_SYSCALL;
+  void* addr = (void*)(pn*PGSIZE);
+  if ((r=sys_page_map(0,addr,envid,addr,perm)) < 0)
+    panic("sys_page_map:%e",r);
+  return 0;
+}
+
 //
 // User-level fork with copy-on-write.
 // Set up our page fault handler appropriately.
@@ -113,7 +124,6 @@ fork(void)
 		panic("sys_exofork: %e", envid);
 
 	if (envid == 0) {
-		thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
 
@@ -136,6 +146,28 @@ fork(void)
 int
 sfork(void)
 {
-	panic("sfork not implemented");
-	return -E_INVAL;
+  envid_t envid;
+  uint32_t addr;
+  int r;
+  set_pgfault_handler(pgfault);
+  envid = sys_exofork();
+	if (envid < 0)
+		panic("sys_exofork: %e", envid);
+
+	if (envid == 0) {
+		return 0;
+	}
+  for (addr = (uint32_t) UTEXT; addr < USTACKTOP-PGSIZE ; addr+=PGSIZE) {
+    if ((vpd[PDX(addr)] & PTE_P) //have this page
+        && (vpt[PGNUM(addr)] & PTE_P)
+        && (vpt[PGNUM(addr)] & PTE_U))
+      duppage_sfork(envid,PGNUM(addr));
+  }
+  duppage(envid,PGNUM(addr)); //dup the stack
+  if ((r=sys_page_alloc(envid,(void*)(UXSTACKTOP-PGSIZE),PTE_P|PTE_U|PTE_W))<0) //alloc the exception stack
+    panic("sys_page_alloc:%e",r);
+  sys_env_set_pgfault_upcall(envid,_pgfault_upcall);
+	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e", r);
+  return envid;
 }
